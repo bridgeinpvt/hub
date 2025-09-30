@@ -1,0 +1,923 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth models (shared across all apps)
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  refresh_token_expires_in Int?
+  user                     User    @relation("UserAccounts", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+  user         User     @relation("UserSessions", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// OTP System (from capsule app)
+model OTP {
+  id         String   @id @default(cuid())
+  identifier String
+  code       String
+  type       OTPType
+  expiresAt  DateTime
+  verified   Boolean  @default(false)
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([identifier, type])
+  @@index([expiresAt])
+}
+
+// Central User model with enrollment flags
+model User {
+  id                      String                    @id @default(cuid())
+  name                    String?
+  email                   String?                   @unique
+  emailVerified           DateTime?
+  image                   String?
+  username                String?                   @unique
+  bio                     String?
+  location                String?
+  banner                  String?
+  phone                   String?                   @unique
+  phoneVerified           DateTime?
+  password                String?
+  upiId                   String?
+
+  // App enrollment flags
+  capsuleEnrolled         Boolean                   @default(false)
+  businessEnrolled        Boolean                   @default(false)
+
+  // Status and activity
+  isOnboarded             Boolean                   @default(false)
+  isActive                Boolean                   @default(true)
+
+  // Social features
+  followerCount           Int                       @default(0)
+  followingCount          Int                       @default(0)
+
+  // Referral system
+  totalReferrals          Int                       @default(0)
+  referralCredits         Int                       @default(0)
+  referralCode            String?                   @unique
+  referredById            String?
+
+  // Professional information
+  userRole                UserRole                  @default(USER)
+  shortBio                String?
+  skills                  String[]
+  hourlyRate              Float?
+  availability            Availability?
+  portfolioUrls           String[]
+  socialPlatforms         String?
+  creatorContentTypes     String[]
+  sampleProducts          String[]
+  age                     String?
+  countryCode             String?
+
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+
+  // Auth relations
+  accounts                Account[]                 @relation("UserAccounts")
+  sessions                Session[]                 @relation("UserSessions")
+
+  // Social relations
+  bookmarks               Bookmark[]                @relation("UserBookmarks")
+  following               Follow[]                  @relation("UserFollowing")
+  followers               Follow[]                  @relation("UserFollowers")
+  likes                   Like[]                    @relation("UserLikes")
+  posts                   Post[]                    @relation("UserPosts")
+  notifications           Notification[]            @relation("UserNotifications")
+
+  // Capsule relations
+  capsules                Capsule[]                 @relation("UserCapsules")
+  packagePurchases        CapsulePackagePurchase[]  @relation("UserPackagePurchases")
+  purchases               CapsulePurchase[]         @relation("UserPurchases")
+  reviews                 CapsuleReview[]           @relation("UserReviews")
+
+  // Business relations
+  ownedBusinesses         Business[]                @relation("BusinessOwner")
+  customerProfiles        Customer[]                @relation("CustomerUser")
+  orders                  Order[]                   @relation("CustomerOrders")
+  productReviews          Review[]                  @relation("UserReviews")
+
+  // Messaging relations
+  conversations           ConversationParticipant[] @relation("UserConversations")
+  messages                Message[]                 @relation("UserMessages")
+  receivedMessageRequests MessageRequest[]          @relation("UserReceivedMessageRequests")
+  sentMessageRequests     MessageRequest[]          @relation("UserSentMessageRequests")
+
+  // File and referral relations
+  fileUploads             FileStorage[]             @relation("UserFileUploads")
+  referredReferrals       Referral[]                @relation("UserReferrals_Referred")
+  referrals               Referral[]                @relation("UserReferrals_Referrer")
+  referredBy              User?                     @relation("UserReferrals", fields: [referredById], references: [id])
+  referredUsers           User[]                    @relation("UserReferrals")
+
+  // Wallet relations
+  wallet                  Wallet?                   @relation("UserWallet")
+  walletTransactionsFrom  WalletTransaction[]       @relation("WalletTransactionsFrom")
+  walletTransactionsTo    WalletTransaction[]       @relation("WalletTransactionsTo")
+  payoutRequests          PayoutRequest[]           @relation("UserPayoutRequests")
+  walletTopups            WalletTopup[]             @relation("UserWalletTopups")
+
+  @@index([email])
+  @@index([username])
+  @@index([phone])
+}
+
+// Social Features (from capsule app)
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Post {
+  id              String     @id @default(cuid())
+  content         String
+  images          String[]
+  published       Boolean    @default(true)
+  likesCount      Int        @default(0)
+  repliesCount    Int        @default(0)
+  replyToId       String?
+  isReply         Boolean    @default(false)
+  createdByUserId String
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  bookmarks       Bookmark[] @relation("PostBookmarks")
+  likes           Like[]     @relation("PostLikes")
+  createdBy       User       @relation("UserPosts", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  replyTo         Post?      @relation("PostReplies", fields: [replyToId], references: [id], onDelete: Cascade)
+  replies         Post[]     @relation("PostReplies")
+  tags            Tag[]      @relation("PostTags")
+
+  @@index([createdByUserId])
+  @@index([createdAt])
+  @@index([published])
+  @@index([replyToId])
+}
+
+model Like {
+  id            String   @id @default(cuid())
+  postId        String
+  likedByUserId String
+  createdAt     DateTime @default(now())
+  likedBy       User     @relation("UserLikes", fields: [likedByUserId], references: [id], onDelete: Cascade)
+  post          Post     @relation("PostLikes", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, likedByUserId])
+  @@index([postId])
+  @@index([likedByUserId])
+}
+
+model Bookmark {
+  id                 String   @id @default(cuid())
+  postId             String
+  bookmarkedByUserId String
+  createdAt          DateTime @default(now())
+  bookmarkedBy       User     @relation("UserBookmarks", fields: [bookmarkedByUserId], references: [id], onDelete: Cascade)
+  post               Post     @relation("PostBookmarks", fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, bookmarkedByUserId])
+  @@index([postId])
+  @@index([bookmarkedByUserId])
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  posts Post[] @relation("PostTags")
+
+  @@index([name])
+}
+
+// Capsule Management Models
+model Capsule {
+  id                 String              @id @default(cuid())
+  name               String
+  description        String
+  type               CapsuleType
+  category           String?
+  tags               String[]
+  logoUrl            String?
+  previewImages      String[]
+  price              Float               @default(0)
+  pricingType        PricingType         @default(ONE_TIME)
+  subscriptionPeriod String?
+  rating             Float?              @default(0)
+  totalSales         Int                 @default(0)
+  reviewCount        Int                 @default(0)
+  isActive           Boolean             @default(true)
+  featured           Boolean             @default(false)
+  creatorId          String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  demoImages         String[]            @default([])
+  whatsIncluded      String[]            @default([])
+  keyBenefits        Json                @default("[]")
+  assetLink          String?
+  creator            User                @relation("UserCapsules", fields: [creatorId], references: [id], onDelete: Cascade)
+  attachments        CapsuleAttachment[] @relation("CapsuleAttachments")
+  packages           CapsulePackage[]    @relation("CapsulePackages")
+  purchases          CapsulePurchase[]   @relation("CapsulePurchases")
+  reviews            CapsuleReview[]     @relation("CapsuleReviews")
+  walletTransactions WalletTransaction[] @relation("WalletTransactionCapsule")
+
+  @@index([creatorId])
+  @@index([type])
+  @@index([category])
+  @@index([isActive])
+  @@index([featured])
+  @@index([price])
+}
+
+model CapsulePackage {
+  id             String                   @id @default(cuid())
+  capsuleId      String
+  name           String
+  description    String?
+  price          Float
+  originalPrice  Float?
+  isPopular      Boolean                  @default(false)
+  features       String[]
+  isActive       Boolean                  @default(true)
+  sortOrder      Int                      @default(0)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  accessDuration String?
+  accessLimit    Int?
+  accessType     String?
+  capsule        Capsule                  @relation("CapsulePackages", fields: [capsuleId], references: [id], onDelete: Cascade)
+  purchases      CapsulePackagePurchase[] @relation("PackagePurchases")
+
+  @@index([capsuleId])
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model CapsuleAttachment {
+  id          String   @id @default(cuid())
+  capsuleId   String
+  name        String
+  description String?
+  fileUrl     String
+  fileType    String
+  fileSize    Int
+  createdAt   DateTime @default(now())
+  capsule     Capsule  @relation("CapsuleAttachments", fields: [capsuleId], references: [id], onDelete: Cascade)
+
+  @@index([capsuleId])
+}
+
+model CapsulePurchase {
+  id            String         @id @default(cuid())
+  capsuleId     String
+  buyerId       String
+  amount        Float
+  paymentMethod String?
+  paymentStatus CPaymentStatus @default(PENDING)
+  transactionId String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  buyer         User           @relation("UserPurchases", fields: [buyerId], references: [id], onDelete: Cascade)
+  capsule       Capsule        @relation("CapsulePurchases", fields: [capsuleId], references: [id], onDelete: Cascade)
+
+  @@unique([capsuleId, buyerId])
+  @@index([capsuleId])
+  @@index([buyerId])
+  @@index([paymentStatus])
+}
+
+model CapsulePackagePurchase {
+  id            String         @id @default(cuid())
+  packageId     String
+  buyerId       String
+  amount        Float
+  paymentMethod String?
+  paymentStatus CPaymentStatus @default(PENDING)
+  transactionId String?
+  downloadCount Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  buyer         User           @relation("UserPackagePurchases", fields: [buyerId], references: [id], onDelete: Cascade)
+  package       CapsulePackage @relation("PackagePurchases", fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, buyerId])
+  @@index([packageId])
+  @@index([buyerId])
+  @@index([paymentStatus])
+}
+
+model CapsuleReview {
+  id         String   @id @default(cuid())
+  capsuleId  String
+  reviewerId String
+  rating     Float
+  comment    String?
+  createdAt  DateTime @default(now())
+  capsule    Capsule  @relation("CapsuleReviews", fields: [capsuleId], references: [id], onDelete: Cascade)
+  reviewer   User     @relation("UserReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@unique([capsuleId, reviewerId])
+  @@index([capsuleId])
+  @@index([reviewerId])
+}
+
+// Business Management Models
+model Business {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  category        String?
+  logoUrl         String?
+  coverImageUrl   String?
+  contactEmail    String?
+  contactPhone    String?
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?
+  country         String?   @default("India")
+  website         String?
+  socialMedia     Json?     // {instagram, facebook, twitter, etc}
+  businessHours   Json?     // {monday: {open: "9:00", close: "18:00"}, etc}
+  upiId           String?
+  bankAccount     String?
+  ifscCode        String?
+  gstin           String?
+  isActive        Boolean   @default(true)
+  isVerified      Boolean   @default(false)
+  totalRevenue    Float     @default(0)
+  totalOrders     Int       @default(0)
+  rating          Float?    @default(0)
+  reviewCount     Int       @default(0)
+  ownerId         String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  owner           User       @relation("BusinessOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  products        Product[]  @relation("BusinessProducts")
+  customers       Customer[] @relation("BusinessCustomers")
+  orders          Order[]    @relation("BusinessOrders")
+  categories      Category[] @relation("BusinessCategories")
+
+  @@index([ownerId])
+  @@index([category])
+  @@index([isActive])
+  @@index([city])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  imageUrl    String?
+  isActive    Boolean   @default(true)
+  businessId  String
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  business    Business  @relation("BusinessCategories", fields: [businessId], references: [id], onDelete: Cascade)
+  products    Product[] @relation("CategoryProducts")
+
+  @@index([businessId])
+  @@index([isActive])
+}
+
+model Product {
+  id              String      @id @default(cuid())
+  name            String
+  description     String?
+  shortDescription String?
+  price           Float
+  originalPrice   Float?
+  images          String[]    @default([])
+  category        String?
+  categoryId      String?
+  tags            String[]    @default([])
+  sku             String?     @unique
+  inventory       Int         @default(0)
+  lowStockAlert   Int         @default(5)
+  weight          Float?
+  dimensions      Json?       // {length, width, height}
+  specifications  Json?       // flexible product specs
+  variants        Json?       // {size: ["S", "M", "L"], color: ["Red", "Blue"]}
+  isActive        Boolean     @default(true)
+  isFeatured      Boolean     @default(false)
+  totalSales      Int         @default(0)
+  rating          Float?      @default(0)
+  reviewCount     Int         @default(0)
+  businessId      String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  business        Business    @relation("BusinessProducts", fields: [businessId], references: [id], onDelete: Cascade)
+  productCategory Category?   @relation("CategoryProducts", fields: [categoryId], references: [id])
+  orderItems      OrderItem[] @relation("ProductOrderItems")
+  reviews         Review[]    @relation("ProductReviews")
+
+  @@index([businessId])
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([price])
+  @@index([totalSales])
+}
+
+model Customer {
+  id              String    @id @default(cuid())
+  userId          String
+  businessId      String
+  totalSpent      Float     @default(0)
+  orderCount      Int       @default(0)
+  lastOrderDate   DateTime?
+  preferredCategories String[] @default([])
+  notes           String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  user            User      @relation("CustomerUser", fields: [userId], references: [id], onDelete: Cascade)
+  business        Business  @relation("BusinessCustomers", fields: [businessId], references: [id], onDelete: Cascade)
+  orders          Order[]   @relation("CustomerOrders")
+
+  @@unique([userId, businessId])
+  @@index([userId])
+  @@index([businessId])
+  @@index([totalSpent])
+}
+
+model Order {
+  id                String          @id @default(cuid())
+  orderNumber       String          @unique
+  customerId        String?
+  userId            String
+  businessId        String
+  totalAmount       Float
+  discountAmount    Float           @default(0)
+  taxAmount         Float           @default(0)
+  shippingAmount    Float           @default(0)
+  finalAmount       Float
+  status            OrderStatus     @default(PENDING)
+  paymentStatus     BPaymentStatus  @default(PENDING)
+  paymentMethod     String?
+  transactionId     String?
+  shippingAddress   Json?           // {name, phone, address, city, state, zipCode}
+  billingAddress    Json?
+  notes             String?
+  estimatedDelivery DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  customer          Customer?       @relation("CustomerOrders", fields: [customerId], references: [id])
+  user              User            @relation("CustomerOrders", fields: [userId], references: [id], onDelete: Cascade)
+  business          Business        @relation("BusinessOrders", fields: [businessId], references: [id], onDelete: Cascade)
+  items             OrderItem[]     @relation("OrderItems")
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([customerId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+  variant     Json?    // selected variant options
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  order       Order    @relation("OrderItems", fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation("ProductOrderItems", fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  productId   String
+  userId      String
+  rating      Float
+  title       String?
+  comment     String?
+  images      String[] @default([])
+  isVerified  Boolean  @default(false)
+  helpfulCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  product     Product  @relation("ProductReviews", fields: [productId], references: [id], onDelete: Cascade)
+  user        User     @relation("UserReviews", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId])
+  @@index([userId])
+  @@index([rating])
+}
+
+// Messaging System (from capsule app)
+model Message {
+  id             String       @id @default(cuid())
+  content        String
+  senderId       String
+  conversationId String
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("UserMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+model Conversation {
+  id           String                    @id @default(cuid())
+  type         String
+  name         String?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  participants ConversationParticipant[] @relation("ConversationParticipants")
+  messages     Message[]                 @relation("ConversationMessages")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime     @default(now())
+  conversation   Conversation @relation("ConversationParticipants", fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation("UserConversations", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+}
+
+model MessageRequest {
+  id         String               @id @default(cuid())
+  senderId   String
+  receiverId String
+  message    String?
+  status     MessageRequestStatus @default(PENDING)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  receiver   User                 @relation("UserReceivedMessageRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User                 @relation("UserSentMessageRequests", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+// Notification System
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  content   String?
+  isRead    Boolean          @default(false)
+  relatedId String?
+  actionUrl String?
+  createdAt DateTime         @default(now())
+  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// Referral System
+model Referral {
+  id            String         @id @default(cuid())
+  referrerId    String
+  referredId    String
+  referralCode  String
+  status        ReferralStatus @default(PENDING)
+  rewardAmount  Float          @default(0)
+  rewardClaimed Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  referred      User           @relation("UserReferrals_Referred", fields: [referredId], references: [id], onDelete: Cascade)
+  referrer      User           @relation("UserReferrals_Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+
+  @@unique([referrerId, referredId])
+  @@index([referrerId])
+  @@index([referredId])
+  @@index([referralCode])
+  @@index([status])
+}
+
+// File Storage
+model FileStorage {
+  id         String   @id @default(cuid())
+  filename   String
+  mimetype   String
+  size       Int
+  data       Bytes?
+  uploadedBy String?
+  purpose    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  r2Key      String?  @unique
+  r2Url      String?
+  uploader   User?    @relation("UserFileUploads", fields: [uploadedBy], references: [id])
+
+  @@index([uploadedBy])
+  @@index([purpose])
+  @@index([mimetype])
+  @@index([r2Key])
+}
+
+// Wallet System (from capsule app)
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation("UserWallet", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model WalletTopup {
+  id          String         @id @default(cuid())
+  userId      String
+  amount      Float
+  method      PaymentMethod  @default(QR_PAYMENT)
+  upiId       String?
+  referenceId String         @unique
+  status      TopupStatus    @default(PENDING)
+  notes       String?
+  qrCodeData  String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation("UserWalletTopups", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([referenceId])
+  @@index([createdAt])
+}
+
+model WalletTransaction {
+  id              String                   @id @default(cuid())
+  fromUserId      String?
+  toUserId        String?
+  amount          Float
+  type            WalletTransactionType
+  status          TransactionStatus        @default(PENDING)
+  description     String?
+  capsuleId       String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  fromUser        User?                    @relation("WalletTransactionsFrom", fields: [fromUserId], references: [id])
+  toUser          User?                    @relation("WalletTransactionsTo", fields: [toUserId], references: [id])
+  capsule         Capsule?                 @relation("WalletTransactionCapsule", fields: [capsuleId], references: [id])
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PayoutRequest {
+  id            String              @id @default(cuid())
+  userId        String
+  amount        Float
+  status        PayoutRequestStatus @default(PENDING)
+  bankAccount   String?
+  ifscCode      String?
+  accountHolder String?
+  reason        String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  processedAt   DateTime?
+  user          User                @relation("UserPayoutRequests", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// News System (from capsule app)
+model News {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  url         String      @unique
+  sourceId    String?
+  createdAt   DateTime    @default(now())
+  author      String?
+  publishedAt DateTime?
+  urlToImage  String?
+  source      NewsSource? @relation("NewsSourceNews", fields: [sourceId], references: [id])
+
+  @@index([createdAt])
+  @@index([publishedAt])
+  @@index([sourceId])
+}
+
+model NewsSource {
+  id    String  @id @default(cuid())
+  name  String
+  url   String
+  image String?
+  news  News[]  @relation("NewsSourceNews")
+}
+
+// Utility models
+model PostToTag {
+  A String
+  B String
+
+  @@id([A, B], map: "_PostToTag_AB_pkey")
+  @@map("_PostToTag")
+}
+
+// Enums
+enum OTPType {
+  EMAIL_VERIFICATION
+  PHONE_VERIFICATION
+  LOGIN
+  PASSWORD_RESET
+}
+
+enum UserRole {
+  USER
+  STARTUP_FOUNDER
+  FREELANCER
+  CREATOR
+  ANGEL_INVESTOR
+}
+
+enum Availability {
+  PART_TIME
+  FULL_TIME
+  CONTRACT
+}
+
+enum CapsuleType {
+  INFO_PRODUCTS
+  DIGITAL_TOOLS
+  CREATIVE_ASSETS
+  SAAS_APIS
+  SUBSCRIPTIONS
+}
+
+enum PricingType {
+  ONE_TIME
+  SUBSCRIPTION
+}
+
+// Capsule Payment Status
+enum CPaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// Business enums
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+// Business Payment Status
+enum BPaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum ReferralStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+}
+
+enum NotificationType {
+  CAPSULE_PURCHASE
+  CAPSULE_REVIEW
+  POST_LIKE
+  POST_COMMENT
+  NEW_FOLLOWER
+  FOLLOW_BACK
+  REFERRAL_REWARD
+  SYSTEM_ANNOUNCEMENT
+  MESSAGE_REQUEST
+  NEW_MESSAGE
+  BUSINESS_ORDER
+  BUSINESS_REVIEW
+}
+
+enum MessageRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum WalletTransactionType {
+  ADD_MONEY
+  CAPSULE_PURCHASE
+  CAPSULE_SALE
+  BUSINESS_PURCHASE
+  BUSINESS_SALE
+  REFUND
+  PAYOUT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PayoutRequestStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  QR_PAYMENT
+}
+
+enum TopupStatus {
+  PENDING
+  AWAITING_PAYMENT
+  SUCCESS
+  FAILED
+}
