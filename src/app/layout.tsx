@@ -1,9 +1,12 @@
-import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { SessionProvider } from "@/components/SessionProvider";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "NoCage - Unified Platform",
-  description: "Social networking, capsule marketplace, and business management in one platform",
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata = {
+  title: "Nocage Hub",
+  description: "Nocage Social Hub",
 };
 
 export default function RootLayout({
@@ -13,8 +16,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased">
-        {children}
+      <body className={inter.className}>
+        <SessionProvider>
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );
