@@ -1,9 +1,10 @@
 "use client";
+import { signOut } from "@/contexts/AuthContext";
 
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { 
   Home, 
@@ -45,7 +46,7 @@ interface SidebarProps {
 
 export function Sidebar({ className, onCollapseChange }: SidebarProps) {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session } = useAuth();
   const { data: currentUser } = api.user.getCurrentUser.useQuery(
     undefined,
     { enabled: !!session?.user?.id }

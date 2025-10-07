@@ -10,7 +10,7 @@ export const filesRouter = createTRPCRouter({
       fileId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { fileId } = input;
 
       try {
@@ -63,7 +63,7 @@ export const filesRouter = createTRPCRouter({
       fileId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { capsuleId, fileId } = input;
 
       try {
@@ -132,7 +132,7 @@ export const filesRouter = createTRPCRouter({
       cursor: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { purpose, limit, cursor } = input;
 
       try {
@@ -185,7 +185,7 @@ export const filesRouter = createTRPCRouter({
       fileId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { fileId } = input;
 
       try {

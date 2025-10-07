@@ -11,7 +11,7 @@ export const notificationRouter = createTRPCRouter({
     }))
     .query(async ({ ctx, input }) => {
       const { limit, unreadOnly } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const notifications = await ctx.db.notification.findMany({
         where: {
@@ -32,7 +32,7 @@ export const notificationRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { notificationId } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       await ctx.db.notification.updateMany({
         where: {
@@ -50,7 +50,7 @@ export const notificationRouter = createTRPCRouter({
   // Mark all notifications as read
   markAllAsRead: protectedProcedure
     .mutation(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       await ctx.db.notification.updateMany({
         where: {
@@ -68,8 +68,8 @@ export const notificationRouter = createTRPCRouter({
   // Get unread count
   getUnreadCount: protectedProcedure
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
-      
+      const userId = ctx.user.id;
+
       const count = await ctx.db.notification.count({
         where: {
           userId,
@@ -78,6 +78,26 @@ export const notificationRouter = createTRPCRouter({
       });
 
       return { count };
+    }),
+
+  // Get latest notifications (alias for getNotifications with default limit)
+  getLatest: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(100).default(10)
+    }).optional())
+    .query(async ({ ctx, input = {} }) => {
+      const { limit = 10 } = input;
+      const userId = ctx.user.id;
+
+      const notifications = await ctx.db.notification.findMany({
+        where: {
+          userId,
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+      });
+
+      return notifications;
     }),
 
   // Create notification (internal function for other parts of the app to use)

@@ -8,7 +8,7 @@ export const walletRouter = createTRPCRouter({
   // Get wallet balance
   getWallet: protectedProcedure
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       // Create wallet if doesn't exist
       const wallet = await ctx.db.wallet.upsert({
@@ -31,7 +31,7 @@ export const walletRouter = createTRPCRouter({
       type: z.enum(["ADD_MONEY", "CAPSULE_PURCHASE", "CAPSULE_SALE", "REFUND", "PAYOUT"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const transactions = await ctx.db.walletTransaction.findMany({
         where: {
@@ -90,7 +90,7 @@ export const walletRouter = createTRPCRouter({
       upiId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
 
       if (input.upiId && !UPIService.validateUPIId(input.upiId)) {
@@ -139,7 +139,7 @@ export const walletRouter = createTRPCRouter({
       status: z.enum(["PENDING", "AWAITING_PAYMENT", "SUCCESS", "FAILED"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const topups = await ctx.db.walletTopup.findMany({
         where: {
@@ -171,8 +171,8 @@ export const walletRouter = createTRPCRouter({
       packageId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const buyerId = ctx.session.user.id;
-      const buyer = ctx.session.user;
+      const buyerId = ctx.user.id;
+      const buyer = ctx.user;
 
       // Get capsule details
       const capsule = await ctx.db.capsule.findUnique({
@@ -449,7 +449,7 @@ Enjoy your new digital asset! 🚀`
       accountHolder: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       // Get user's wallet
       const wallet = await ctx.db.wallet.findUnique({
@@ -484,7 +484,7 @@ Enjoy your new digital asset! 🚀`
       limit: z.number().min(1).max(50).default(20),
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const requests = await ctx.db.payoutRequest.findMany({
         where: { userId },
@@ -501,7 +501,7 @@ Enjoy your new digital asset! 🚀`
       payoutRequestId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       // For now, we'll assume any user can process their own payout
       // In production, this should be restricted to admins
@@ -577,7 +577,7 @@ Enjoy your new digital asset! 🚀`
     }))
     .mutation(async ({ ctx, input }) => {
       // TODO: Add admin role check here
-      // const userRole = ctx.session.user.role;
+      // const userRole = ctx.user.role;
       // if (userRole !== "ADMIN") {
       //   throw new TRPCError({ code: "UNAUTHORIZED", message: "Admin access required" });
       // }
@@ -614,7 +614,7 @@ Enjoy your new digital asset! 🚀`
     }))
     .query(async ({ ctx, input }) => {
       // TODO: Add admin role check
-      // const userRole = ctx.session.user.role;
+      // const userRole = ctx.user.role;
       // if (userRole !== "ADMIN") {
       //   throw new TRPCError({ code: "UNAUTHORIZED", message: "Admin access required" });
       // }
@@ -659,7 +659,7 @@ Enjoy your new digital asset! 🚀`
     }))
     .mutation(async ({ ctx, input }) => {
       // TODO: Add admin role check
-      // const userRole = ctx.session.user.role;
+      // const userRole = ctx.user.role;
       // if (userRole !== "ADMIN") {
       //   throw new TRPCError({ code: "UNAUTHORIZED", message: "Admin access required" });
       // }
@@ -712,7 +712,7 @@ Enjoy your new digital asset! 🚀`
     }))
     .mutation(async ({ ctx, input }) => {
       // TODO: Add admin role check
-      // const userRole = ctx.session.user.role;
+      // const userRole = ctx.user.role;
       // if (userRole !== "ADMIN") {
       //   throw new TRPCError({ code: "UNAUTHORIZED", message: "Admin access required" });
       // }
@@ -745,7 +745,7 @@ Enjoy your new digital asset! 🚀`
       credits: z.number().min(100).max(10000), // Min 100 credits (₹20), max 10000 credits (₹2000)
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { credits } = input;
 
       // Get user's current referral credits

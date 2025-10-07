@@ -229,7 +229,7 @@ export const userRouter = createTRPCRouter({
       socialPlatforms: z.string().optional(), // Will be validated as JSON
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       // Validate socialPlatforms if provided
       if (input.socialPlatforms) {
@@ -264,7 +264,7 @@ export const userRouter = createTRPCRouter({
 
 
       // Role-specific fields
-      if (input.userRole === 'FREELANCER' || ctx.session.user.userRole === 'FREELANCER') {
+      if (input.userRole === 'FREELANCER' || ctx.user.userRole === 'FREELANCER') {
         const freelancerFields = ['shortBio', 'skills', 'hourlyRate', 'availability', 'portfolioUrls'];
         freelancerFields.forEach(field => {
           if (input[field as keyof typeof input] !== undefined) {
@@ -273,7 +273,7 @@ export const userRouter = createTRPCRouter({
         });
       }
 
-      if (input.userRole === 'CREATOR' || ctx.session.user.userRole === 'CREATOR') {
+      if (input.userRole === 'CREATOR' || ctx.user.userRole === 'CREATOR') {
         const creatorFields = ['creatorContentTypes', 'sampleProducts', 'socialPlatforms'];
         creatorFields.forEach(field => {
           if (input[field as keyof typeof input] !== undefined) {
@@ -298,7 +298,7 @@ export const userRouter = createTRPCRouter({
   // Get current user profile with all fields
   getCurrentUser: protectedProcedure
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       try {
         const user = await ctx.db.user.findUnique({
@@ -358,7 +358,7 @@ export const userRouter = createTRPCRouter({
   // Get referrer information for current user
   getReferrerInfo: protectedProcedure
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       try {
         const user = await ctx.db.user.findUnique({
@@ -397,7 +397,7 @@ export const userRouter = createTRPCRouter({
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { userId } = input;
-      const currentUserId = ctx.session.user.id;
+      const currentUserId = ctx.user.id;
 
       if (userId === currentUserId) {
         throw new Error("Cannot follow yourself");
@@ -510,7 +510,7 @@ export const userRouter = createTRPCRouter({
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
       const { userId } = input;
-      const currentUserId = ctx.session.user.id;
+      const currentUserId = ctx.user.id;
 
       if (userId === currentUserId) {
         return { isFollowing: false };
@@ -533,7 +533,7 @@ export const userRouter = createTRPCRouter({
     .input(z.object({ userIds: z.array(z.string()) }))
     .query(async ({ ctx, input }) => {
       const { userIds } = input;
-      const currentUserId = ctx.session.user.id;
+      const currentUserId = ctx.user.id;
 
       if (userIds.length === 0) {
         return [];
@@ -562,7 +562,7 @@ export const userRouter = createTRPCRouter({
     .input(z.object({ limit: z.number().min(1).max(100).default(50) }))
     .query(async ({ ctx, input }) => {
       const { limit } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       const followers = await ctx.db.follow.findMany({
         where: { followingId: userId },
@@ -590,7 +590,7 @@ export const userRouter = createTRPCRouter({
     .input(z.object({ limit: z.number().min(1).max(100).default(50) }))
     .query(async ({ ctx, input }) => {
       const { limit } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       const following = await ctx.db.follow.findMany({
         where: { followerId: userId },
@@ -616,7 +616,7 @@ export const userRouter = createTRPCRouter({
   // Delete user account
   deleteAccount: protectedProcedure
     .mutation(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       // Delete user account and all related data (cascading deletes handled by schema)
       await ctx.db.user.delete({
@@ -633,7 +633,7 @@ export const userRouter = createTRPCRouter({
       unreadOnly: z.boolean().default(false)
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const notifications = await ctx.db.notification.findMany({
         where: {
@@ -653,7 +653,7 @@ export const userRouter = createTRPCRouter({
       notificationId: z.string()
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const notification = await ctx.db.notification.updateMany({
         where: {
@@ -671,7 +671,7 @@ export const userRouter = createTRPCRouter({
   // Mark all notifications as read
   markAllNotificationsRead: protectedProcedure
     .mutation(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       await ctx.db.notification.updateMany({
         where: {
@@ -689,8 +689,8 @@ export const userRouter = createTRPCRouter({
   // Get unread notification count
   getUnreadNotificationCount: protectedProcedure
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
-      
+      const userId = ctx.user.id;
+
       const count = await ctx.db.notification.count({
         where: {
           userId,
@@ -699,6 +699,56 @@ export const userRouter = createTRPCRouter({
       });
 
       return { count };
+    }),
+
+  // Get user statistics
+  getUserStats: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userId = ctx.user.id;
+
+      try {
+        const user = await ctx.db.user.findUnique({
+          where: { id: userId },
+          select: {
+            _count: {
+              select: {
+                posts: true,
+                capsules: true,
+                referredUsers: true,
+              },
+            },
+            followerCount: true,
+            followingCount: true,
+          },
+        });
+
+        if (!user) {
+          return {
+            postsCount: 0,
+            capsulesCount: 0,
+            referralsCount: 0,
+            followerCount: 0,
+            followingCount: 0,
+          };
+        }
+
+        return {
+          postsCount: user._count.posts,
+          capsulesCount: user._count.capsules,
+          referralsCount: user._count.referredUsers,
+          followerCount: user.followerCount,
+          followingCount: user.followingCount,
+        };
+      } catch (error) {
+        logger.error("Error fetching user stats:", error);
+        return {
+          postsCount: 0,
+          capsulesCount: 0,
+          referralsCount: 0,
+          followerCount: 0,
+          followingCount: 0,
+        };
+      }
     }),
 
   // Submit asset acknowledgment
@@ -711,7 +761,7 @@ export const userRouter = createTRPCRouter({
       issueDescription: z.string().optional()
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { purchaseId, status, rating, feedback, issueDescription } = input;
 
       // Verify the purchase belongs to the user
@@ -752,18 +802,18 @@ export const userRouter = createTRPCRouter({
 
         switch (status) {
           case "confirmed":
-            notificationContent = `✅ ${ctx.session.user.name || "A customer"} confirmed successful receipt of "${purchase.capsule.name}"`;
+            notificationContent = `✅ ${ctx.user.name || "A customer"} confirmed successful receipt of "${purchase.capsule.name}"`;
             if (rating) {
               notificationContent += ` and rated it ${rating} stars`;
             }
             notificationType = "CAPSULE_REVIEW";
             break;
           case "issue":
-            notificationContent = `⚠️ ${ctx.session.user.name || "A customer"} reported an issue with "${purchase.capsule.name}"`;
+            notificationContent = `⚠️ ${ctx.user.name || "A customer"} reported an issue with "${purchase.capsule.name}"`;
             notificationType = "SYSTEM_ANNOUNCEMENT";
             break;
           case "help":
-            notificationContent = `❓ ${ctx.session.user.name || "A customer"} needs help with "${purchase.capsule.name}"`;
+            notificationContent = `❓ ${ctx.user.name || "A customer"} needs help with "${purchase.capsule.name}"`;
             notificationType = "SYSTEM_ANNOUNCEMENT";
             break;
         }
@@ -794,7 +844,7 @@ export const userRouter = createTRPCRouter({
                 userId: adminUser.id,
                 type: "SYSTEM_ANNOUNCEMENT",
                 title: `Customer ${status === "issue" ? "Issue" : "Help Request"}`,
-                content: `${ctx.session.user.name || "A customer"} needs ${status === "issue" ? "issue resolution" : "help"} with "${purchase.capsule.name}". Purchase ID: ${purchaseId}`,
+                content: `${ctx.user.name || "A customer"} needs ${status === "issue" ? "issue resolution" : "help"} with "${purchase.capsule.name}". Purchase ID: ${purchaseId}`,
                 relatedId: purchaseId
               }
             });

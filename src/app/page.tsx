@@ -1,23 +1,12 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      router.push("/home");
-    }
-  }, [status, router]);
-
-  if (status === "loading") {
-    return <div>Loading...</div>;
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
@@ -26,8 +15,17 @@ export default function HomePage() {
           <CardTitle className="text-3xl font-bold">Nocage Hub</CardTitle>
           <CardDescription>Your Social Platform</CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-center">Please sign in to access the hub.</p>
+        <CardContent className="space-y-4">
+          <p className="text-center">Welcome to Nocage Hub - Your Social Platform</p>
+          <Button
+            className="w-full"
+            onClick={() => router.push("/home")}
+          >
+            Go to Home
+          </Button>
+          <p className="text-center text-sm text-muted-foreground">
+            You'll be asked to sign in if you're not authenticated
+          </p>
         </CardContent>
       </Card>
     </div>

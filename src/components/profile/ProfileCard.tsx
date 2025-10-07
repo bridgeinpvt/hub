@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -22,7 +22,7 @@ interface ProfileCardProps {
 }
 
 export function ProfileCard({ user }: ProfileCardProps) {
-  const { data: session } = useSession();
+  const { data: session } = useAuth();
   const router = useRouter();
   const utils = api.useUtils();
   const isOwnProfile = session?.user?.id === user.id;

@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -14,28 +13,17 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session, status } = useSession();
   const pathname = usePathname();
   const router = useRouter();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  
-  logger.log("Protected Layout - Session:", session?.user?.id, "Status:", status);
-  
+
+  // Middleware already handles authentication, just get user data
   const { data: currentUser, isLoading: userLoading, error: userError } = api.user.getCurrentUser.useQuery(
     undefined,
     {
-      enabled: status === "authenticated" && !!session?.user?.id,
       retry: false,
     }
   );
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      logger.log("Unauthenticated user, redirecting to login");
-      router.replace("/login");
-      return;
-    }
-  }, [status, router]);
 
   // Check onboarding status
   useEffect(() => {
@@ -44,31 +32,15 @@ export default function DashboardLayout({
       return;
     }
 
-    // If user is authenticated and we have user data, check onboarding
-    if (
-      status === "authenticated" && 
-      currentUser && 
-      !currentUser.isOnboarded
-    ) {
+    // If we have user data, check onboarding
+    if (currentUser && !currentUser.isOnboarded) {
       logger.log("[Protected Layout] User not onboarded, redirecting to onboarding");
       router.replace("/onboarding");
       return;
     }
-  }, [status, currentUser, pathname, router]);
+  }, [currentUser, pathname, router]);
 
-  // Don't render anything if unauthenticated (redirect will handle)
-  if (status === "unauthenticated") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Redirecting to login...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === "loading" || userLoading) {
+  if (userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -78,25 +50,24 @@ export default function DashboardLayout({
 
   if (userError) {
     logger.error("Error fetching current user:", userError);
-    // For any user data loading error, sign out and redirect to login
-    signOut({ callbackUrl: '/login' });
+    // DEBUG MODE: Show error instead of redirecting
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Redirecting to login...</p>
+        <div className="text-center p-8 max-w-2xl">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Authentication Error (Debug Mode)</h2>
+          <pre className="text-left bg-gray-100 dark:bg-gray-800 p-4 rounded overflow-auto text-sm">
+            {JSON.stringify(userError, null, 2)}
+          </pre>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Check browser console and cookies in DevTools
+          </p>
         </div>
       </div>
     );
   }
 
   // If user is not onboarded and we're not on onboarding page, show loading
-  if (
-    session && 
-    currentUser && 
-    !currentUser.isOnboarded && 
-    !pathname?.startsWith("/onboarding")
-  ) {
+  if (currentUser && !currentUser.isOnboarded && !pathname?.startsWith("/onboarding")) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">

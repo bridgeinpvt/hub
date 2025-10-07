@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Heart, MessageCircle, Share2, Bookmark, Loader2, ExternalLink, Globe, ChevronLeft, ChevronRight } from "lucide-react";
@@ -39,7 +39,7 @@ interface PostCardProps {
 }
 
 export function PostCard({ post }: PostCardProps) {
-  const { data: session } = useSession();
+  const { data: session } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [optimisticLikeCount, setOptimisticLikeCount] = useState(post._count?.likes || 0);

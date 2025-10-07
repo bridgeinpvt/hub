@@ -120,7 +120,7 @@ export const postRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { content, images = [], hashtags = [] } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       // Process hashtags - create tags if they don't exist and connect them
       const tagConnections = [];
@@ -289,7 +289,7 @@ export const postRouter = createTRPCRouter({
     .input(z.object({ postId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { postId } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       const existingLike = await ctx.db.like.findUnique({
         where: {
@@ -375,7 +375,7 @@ export const postRouter = createTRPCRouter({
     .input(z.object({ postId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { postId } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       const existingBookmark = await ctx.db.bookmark.findUnique({
         where: {
@@ -405,7 +405,7 @@ export const postRouter = createTRPCRouter({
   // Get current user's bookmarked posts (private)
   getBookmarkedByUser: protectedProcedure
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const bookmarkedPosts = await ctx.db.bookmark.findMany({
         where: { bookmarkedByUserId: userId },
@@ -488,7 +488,7 @@ export const postRouter = createTRPCRouter({
     .input(z.object({ postId: z.string() }))
     .query(async ({ ctx, input }) => {
       const { postId } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       const like = await ctx.db.like.findUnique({
         where: {
@@ -507,7 +507,7 @@ export const postRouter = createTRPCRouter({
     .input(z.object({ postId: z.string() }))
     .query(async ({ ctx, input }) => {
       const { postId } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       const bookmark = await ctx.db.bookmark.findUnique({
         where: {
@@ -529,7 +529,7 @@ export const postRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { postId, content } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       // Check if post exists
       const post = await ctx.db.post.findUnique({
@@ -584,7 +584,7 @@ export const postRouter = createTRPCRouter({
     .input(z.object({ postId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const { postId } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       // Check if post exists
       const post = await ctx.db.post.findUnique({

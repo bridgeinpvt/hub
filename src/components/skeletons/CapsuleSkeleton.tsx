@@ -42,3 +42,13 @@ export function CapsuleGridSkeleton({ count = 6 }: { count?: number }) {
     </div>
   );
 }
+
+export function CapsuleListSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <div className="space-y-4">
+      {[...Array(count)].map((_, i) => (
+        <CapsuleSkeleton key={i} />
+      ))}
+    </div>
+  );
+}

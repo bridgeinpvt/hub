@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "../../trpc/react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -16,7 +16,7 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ conversationId }: ChatWindowProps) {
-  const { data: session } = useSession();
+  const { data: session } = useAuth();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const currentUserId = session?.user?.id;

@@ -12,7 +12,7 @@ export const referralRouter = createTRPCRouter({
   // Generate referral code
   generateReferralCode: protectedProcedure
     .mutation(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       // Check if user already has a referral code
       const existingUser = await ctx.db.user.findUnique({
@@ -49,7 +49,7 @@ export const referralRouter = createTRPCRouter({
   getReferralStats: protectedProcedure
     .input(z.void().optional())
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       // Get user's referral code and credits
       const user = await ctx.db.user.findUnique({
@@ -110,7 +110,7 @@ export const referralRouter = createTRPCRouter({
   getReferralHistory: protectedProcedure
     .input(z.void().optional())
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const referrals = await ctx.db.referral.findMany({
         where: {

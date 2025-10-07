@@ -7,7 +7,7 @@ export const chatRouter = createTRPCRouter({
   getConversations: protectedProcedure
     .input(z.void().optional())
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       const conversations = await ctx.db.conversation.findMany({
         where: {
@@ -63,7 +63,7 @@ export const chatRouter = createTRPCRouter({
     }))
     .query(async ({ ctx, input }) => {
       const { conversationId, limit } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       // Check if user is part of the conversation
       const conversation = await ctx.db.conversation.findFirst({
@@ -108,8 +108,8 @@ export const chatRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { conversationId, content } = input;
-      const userId = ctx.session.user.id;
-      const sender = ctx.session.user;
+      const userId = ctx.user.id;
+      const sender = ctx.user;
 
       // Check if user is part of the conversation and get participants
       const conversation = await ctx.db.conversation.findFirst({
@@ -203,7 +203,7 @@ export const chatRouter = createTRPCRouter({
     }))
     .query(async ({ ctx, input }) => {
       const { conversationId } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       const conversation = await ctx.db.conversation.findFirst({
         where: {
@@ -241,7 +241,7 @@ export const chatRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const { participantId, message } = input;
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       if (participantId === userId) {
         throw new Error("Cannot start conversation with yourself");
@@ -404,7 +404,7 @@ Enjoy your new digital asset! 🚀`;
   // Get unread message counts per conversation
   getUnreadCounts: protectedProcedure
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       // Get unread message notifications for the current user
       const unreadNotifications = await ctx.db.notification.findMany({
@@ -435,7 +435,7 @@ Enjoy your new digital asset! 🚀`;
       conversationId: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
 
       // Mark all unread message notifications for this conversation as read
       await ctx.db.notification.updateMany({

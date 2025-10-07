@@ -8,9 +8,11 @@ import { api } from "@/trpc/react";
 import { formatDistanceToNow } from "date-fns";
 
 export function WalletTopupList() {
-  const { data: topups, isLoading } = api.wallet.getTopups.useQuery({
+  const { data, isLoading } = api.wallet.getWalletTopups.useQuery({
     limit: 10
   });
+
+  const topups = data?.topups;
 
   const getStatusIcon = (status: string) => {
     switch (status) {

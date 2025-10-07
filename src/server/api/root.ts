@@ -9,6 +9,7 @@ import { referralRouter } from "./routers/referral";
 import { notificationRouter } from "./routers/notification";
 import { filesRouter } from "./routers/files";
 import { walletRouter } from "./routers/wallet";
+import { analyticsRouter } from "./routers/analytics";
 
 /**
  * This is the primary router for your server.
@@ -26,6 +27,7 @@ export const appRouter = createTRPCRouter({
   notification: notificationRouter,
   files: filesRouter,
   wallet: walletRouter,
+  analytics: analyticsRouter,
 });
 
 // export type definition of API

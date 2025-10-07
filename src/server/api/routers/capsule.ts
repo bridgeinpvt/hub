@@ -61,7 +61,7 @@ export const capsuleRouter = createTRPCRouter({
           },
           purchases: ctx.session?.user?.id ? {
             where: {
-              buyerId: ctx.session.user.id,
+              buyerId: ctx.user.id,
               paymentStatus: "COMPLETED"
             },
             select: {
@@ -93,6 +93,52 @@ export const capsuleRouter = createTRPCRouter({
         })),
         nextCursor
       };
+    }),
+
+  // Get trending capsules (sorted by purchases and reviews)
+  getTrending: publicProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(50).default(10)
+    }).optional())
+    .query(async ({ ctx, input = {} }) => {
+      const { limit = 10 } = input;
+
+      try {
+        const capsules = await ctx.db.capsule.findMany({
+          where: {
+            isActive: true,
+          },
+          take: limit,
+          orderBy: {
+            createdAt: "desc" // In production, you'd sort by purchase count or a trending score
+          },
+          include: {
+            creator: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                image: true,
+              },
+            },
+            _count: {
+              select: {
+                purchases: true,
+                reviews: true,
+              },
+            },
+          },
+        });
+
+        return capsules.map(capsule => ({
+          ...capsule,
+          ordersCount: capsule._count.purchases,
+          reviewsCount: capsule._count.reviews,
+        }));
+      } catch (error) {
+        logger.error("Error fetching trending capsules:", error);
+        return [];
+      }
     }),
 
   // Get capsule by ID
@@ -170,7 +216,7 @@ export const capsuleRouter = createTRPCRouter({
   getCreatorDashboardStats: protectedProcedure
     .input(z.void().optional())
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       // Get all capsules for this creator
       const capsules = await ctx.db.capsule.findMany({
@@ -226,7 +272,7 @@ export const capsuleRouter = createTRPCRouter({
       limit: z.number().min(1).max(50).default(10)
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { limit } = input;
       
       const orders = await ctx.db.capsulePurchase.findMany({
@@ -261,7 +307,7 @@ export const capsuleRouter = createTRPCRouter({
   getMyCapsulesDetailed: protectedProcedure
     .input(z.void().optional())
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const capsules = await ctx.db.capsule.findMany({
         where: { creatorId: userId },
@@ -289,7 +335,7 @@ export const capsuleRouter = createTRPCRouter({
       limit: z.number().min(1).max(50).default(20)
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { limit } = input;
       
       const reviews = await ctx.db.capsuleReview.findMany({
@@ -396,7 +442,7 @@ export const capsuleRouter = createTRPCRouter({
   // Get user stats for current user
   getUserStats: protectedProcedure
     .query(async ({ ctx }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const totalCapsules = await ctx.db.capsule.count({
         where: { creatorId: userId },
@@ -479,7 +525,7 @@ export const capsuleRouter = createTRPCRouter({
       demoImages: z.array(z.string()).default([]),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const capsule = await ctx.db.capsule.create({
         data: {
@@ -557,7 +603,7 @@ export const capsuleRouter = createTRPCRouter({
       demoImages: z.array(z.string()).default([]),
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       // Check if user owns this capsule
       const existingCapsule = await ctx.db.capsule.findFirst({
@@ -629,7 +675,7 @@ export const capsuleRouter = createTRPCRouter({
       paymentMethod: z.string().optional().default("stripe")
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { capsuleId, paymentMethod } = input;
 
       console.log(`[Purchase] Starting purchase for user ${userId}, capsule ${capsuleId}, method ${paymentMethod}`);
@@ -908,7 +954,7 @@ Enjoy your new digital asset! 🚀`
       capsuleId: z.string()
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const purchase = await ctx.db.capsulePurchase.findUnique({
         where: {
@@ -931,7 +977,7 @@ Enjoy your new digital asset! 🚀`
       limit: z.number().min(1).max(50).default(20)
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       
       const purchases = await ctx.db.capsulePurchase.findMany({
         where: {
@@ -964,7 +1010,7 @@ Enjoy your new digital asset! 🚀`
       purchaseId: z.string()
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { purchaseId } = input;
 
       const purchase = await ctx.db.capsulePurchase.findFirst({
@@ -1021,7 +1067,7 @@ Enjoy your new digital asset! 🚀`
       comment: z.string().min(1).max(1000)
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { capsuleId, rating, comment } = input;
 
       // Check if user has purchased this capsule
@@ -1129,7 +1175,7 @@ Enjoy your new digital asset! 🚀`
       capsuleId: z.string()
     }))
     .query(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { capsuleId } = input;
 
       // Check if user has purchased this capsule
@@ -1169,7 +1215,7 @@ Enjoy your new digital asset! 🚀`
       id: z.string()
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { id } = input;
 
       // Check if user owns this capsule
@@ -1219,7 +1265,7 @@ Enjoy your new digital asset! 🚀`
       id: z.string()
     }))
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+      const userId = ctx.user.id;
       const { id } = input;
 
       // Check if user owns this capsule

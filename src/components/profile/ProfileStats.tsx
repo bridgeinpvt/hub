@@ -1,5 +1,5 @@
 import React from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
@@ -16,7 +16,7 @@ interface ProfileStatsProps {
 }
 
 export function ProfileStats({ user }: ProfileStatsProps) {
-  const { data: session } = useSession();
+  const { data: session } = useAuth();
   const isOwnProfile = session?.user?.id === user.id;
 
   return (

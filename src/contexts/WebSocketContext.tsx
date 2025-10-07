@@ -1,106 +1,120 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { logger } from "@/lib/logger";
 
 interface WebSocketContextType {
   socket: WebSocket | null;
   isConnected: boolean;
-  sendMessage: (message: any) => void;
-  subscribe: (event: string, callback: (data: any) => void) => () => void;
+  subscribe: (event: string, handler: (data: any) => void) => () => void;
+  emit: (event: string, data: any) => void;
 }
 
-const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
+const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
-export function WebSocketProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
+interface WebSocketProviderProps {
+  children: React.ReactNode;
+}
+
+export function WebSocketProvider({ children }: WebSocketProviderProps) {
+  const { data: session } = useAuth();
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const subscribers = useRef<Map<string, Set<(data: any) => void>>>(new Map());
-  const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
-
-  const connect = () => {
-    if (!session?.user?.id) return;
-
-    try {
-      const ws = new WebSocket(`ws://localhost:3000/api/websocket?userId=${session.user.id}`);
-
-      ws.onopen = () => {
-        setIsConnected(true);
-        reconnectAttempts.current = 0;
-        console.log('WebSocket connected');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const eventType = data.type;
-
-          if (eventType && subscribers.current.has(eventType)) {
-            const callbacks = subscribers.current.get(eventType);
-            callbacks?.forEach(callback => callback(data.payload));
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      ws.onclose = () => {
-        setIsConnected(false);
-        setSocket(null);
-        console.log('WebSocket disconnected');
-
-        // Attempt to reconnect
-        if (reconnectAttempts.current < maxReconnectAttempts) {
-          reconnectAttempts.current++;
-          const delay = Math.pow(2, reconnectAttempts.current) * 1000; // Exponential backoff
-          setTimeout(connect, delay);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
-
-      setSocket(ws);
-    } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-    }
-  };
+  const eventHandlers = useRef<Map<string, Set<(data: any) => void>>>(new Map());
 
   useEffect(() => {
-    if (session?.user?.id) {
-      connect();
-    }
+    if (!session?.user?.id) return;
+
+    // In a real implementation, you'd use a proper WebSocket server
+    // For now, we'll simulate WebSocket with localStorage events for real-time updates
+    const connectWebSocket = () => {
+      try {
+        // Simulate WebSocket connection
+        const mockSocket = {
+          readyState: 1, // OPEN
+          send: (data: string) => {
+            const message = JSON.parse(data);
+            // Broadcast to other tabs/windows
+            localStorage.setItem('ws-broadcast', JSON.stringify({
+              ...message,
+              timestamp: Date.now(),
+              userId: session.user.id
+            }));
+            localStorage.removeItem('ws-broadcast');
+          },
+          close: () => {
+            setIsConnected(false);
+          }
+        } as any;
+
+        setSocket(mockSocket);
+        setIsConnected(true);
+
+        // Listen for localStorage changes (simulating WebSocket messages)
+        const handleStorageChange = (event: StorageEvent) => {
+          if (event.key === 'ws-broadcast' && event.newValue) {
+            try {
+              const message = JSON.parse(event.newValue);
+              // Don't process messages from the same user
+              if (message.userId !== session.user.id) {
+                const handlers = eventHandlers.current.get(message.event);
+                if (handlers) {
+                  handlers.forEach(handler => handler(message.data));
+                }
+              }
+            } catch (error) {
+              logger.error('Error parsing WebSocket message:', error);
+            }
+          }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+          window.removeEventListener('storage', handleStorageChange);
+        };
+      } catch (error) {
+        logger.error('WebSocket connection error:', error);
+        setIsConnected(false);
+      }
+    };
+
+    const cleanup = connectWebSocket();
 
     return () => {
-      if (socket) {
-        socket.close();
-      }
+      cleanup?.();
+      setSocket(null);
+      setIsConnected(false);
     };
   }, [session?.user?.id]);
 
-  const sendMessage = (message: any) => {
-    if (socket && isConnected) {
-      socket.send(JSON.stringify(message));
+  const subscribe = (event: string, handler: (data: any) => void) => {
+    if (!eventHandlers.current.has(event)) {
+      eventHandlers.current.set(event, new Set());
     }
-  };
-
-  const subscribe = (event: string, callback: (data: any) => void) => {
-    if (!subscribers.current.has(event)) {
-      subscribers.current.set(event, new Set());
-    }
-    subscribers.current.get(event)?.add(callback);
+    eventHandlers.current.get(event)!.add(handler);
 
     // Return unsubscribe function
     return () => {
-      subscribers.current.get(event)?.delete(callback);
+      const handlers = eventHandlers.current.get(event);
+      if (handlers) {
+        handlers.delete(handler);
+        if (handlers.size === 0) {
+          eventHandlers.current.delete(event);
+        }
+      }
     };
   };
 
+  const emit = (event: string, data: any) => {
+    if (socket && isConnected) {
+      socket.send(JSON.stringify({ event, data }));
+    }
+  };
+
   return (
-    <WebSocketContext.Provider value={{ socket, isConnected, sendMessage, subscribe }}>
+    <WebSocketContext.Provider value={{ socket, isConnected, subscribe, emit }}>
       {children}
     </WebSocketContext.Provider>
   );
@@ -108,8 +122,51 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
 export function useWebSocket() {
   const context = useContext(WebSocketContext);
-  if (context === undefined) {
-    throw new Error('useWebSocket must be used within a WebSocketProvider');
+  if (!context) {
+    throw new Error("useWebSocket must be used within a WebSocketProvider");
   }
   return context;
+}
+
+// Specific hooks for different real-time events
+export function useRealTimeUpdates() {
+  const { subscribe, emit } = useWebSocket();
+
+  const subscribeToPostUpdates = (postId: string, onUpdate: (data: any) => void) => {
+    return subscribe(`post:${postId}:update`, onUpdate);
+  };
+
+  const subscribeToNewComments = (postId: string, onComment: (data: any) => void) => {
+    return subscribe(`post:${postId}:comment`, onComment);
+  };
+
+  const subscribeToNewMessages = (conversationId: string, onMessage: (data: any) => void) => {
+    return subscribe(`conversation:${conversationId}:message`, onMessage);
+  };
+
+  const emitLike = (postId: string, isLiked: boolean, likesCount: number) => {
+    emit(`post:${postId}:update`, { type: 'like', isLiked, likesCount });
+  };
+
+  const emitComment = (postId: string, comment: any) => {
+    emit(`post:${postId}:comment`, comment);
+  };
+
+  const emitBookmark = (postId: string, isBookmarked: boolean) => {
+    emit(`post:${postId}:update`, { type: 'bookmark', isBookmarked });
+  };
+
+  const emitMessage = (conversationId: string, message: any) => {
+    emit(`conversation:${conversationId}:message`, message);
+  };
+
+  return {
+    subscribeToPostUpdates,
+    subscribeToNewComments,
+    subscribeToNewMessages,
+    emitLike,
+    emitComment,
+    emitBookmark,
+    emitMessage,
+  };
 }

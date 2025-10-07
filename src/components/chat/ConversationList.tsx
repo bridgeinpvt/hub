@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "../../trpc/react";
 import { Avatar } from "../ui/avatar";
 import { Button } from "../ui/button";
@@ -36,7 +36,7 @@ export function ConversationList({
   selectedConversation,
   onSelectConversation
 }: ConversationListProps) {
-  const { data: session } = useSession();
+  const { data: session } = useAuth();
   const utils = api.useUtils();
   const { data: conversations, isLoading, refetch } = api.chat.getConversations.useQuery(undefined, {
     refetchInterval: 10000 // Refetch conversations every 10 seconds to ensure proper ordering

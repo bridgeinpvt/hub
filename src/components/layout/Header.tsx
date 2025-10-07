@@ -1,7 +1,8 @@
 "use client";
+import { signOut } from "@/contexts/AuthContext";
 
 import React from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeLogo } from "@/components/ui/theme-logo";
@@ -11,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/trpc/react";
 
 export function Header() {
-  const { data: session } = useSession();
+  const { data: session } = useAuth();
   const { data: currentUser } = api.user.getCurrentUser.useQuery(
     undefined,
     { enabled: !!session?.user?.id }

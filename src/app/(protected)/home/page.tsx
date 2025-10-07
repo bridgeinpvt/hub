@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { api } from "@/trpc/react";
 import { CreatePostForm } from "@/components/post/CreatePostForm";
 import { PostList } from "@/components/post/PostList";
@@ -19,7 +18,6 @@ const Notifications = dynamic(() => import("@/components/sidebar/Notifications")
 
 export default function HomePage() {
   const router = useRouter();
-  const { data: session } = useSession();
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [shouldLoadSidebar, setShouldLoadSidebar] = useState(false);
 

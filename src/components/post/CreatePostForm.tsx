@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/trpc/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ const ReactQuill = dynamic(() => import('react-quill'), {
 });
 
 export function CreatePostForm({ onPostCreated }: { onPostCreated?: () => void }) {
-  const { data: session } = useSession();
+  const { data: session } = useAuth();
   const { data: currentUser } = api.user.getCurrentUser.useQuery(
     undefined,
     { enabled: !!session?.user?.id }

@@ -99,7 +99,7 @@ export async function authMiddleware(request: NextRequest, config: AuthConfig): 
   if (!authToken) {
     // Redirect to auth service for login
     const callbackUrl = encodeURIComponent(request.url);
-    const loginUrl = `http://${config.authDomain}/api/auth/signin?callbackUrl=${callbackUrl}`;
+    const loginUrl = `http://${config.authDomain}/login?callbackUrl=${callbackUrl}`;
     return NextResponse.redirect(loginUrl);
   }
 
@@ -109,7 +109,7 @@ export async function authMiddleware(request: NextRequest, config: AuthConfig): 
   if (!user) {
     // Invalid token, redirect to login
     const callbackUrl = encodeURIComponent(request.url);
-    const loginUrl = `http://${config.authDomain}/api/auth/signin?callbackUrl=${callbackUrl}`;
+    const loginUrl = `http://${config.authDomain}/login?callbackUrl=${callbackUrl}`;
     return NextResponse.redirect(loginUrl);
   }
 
