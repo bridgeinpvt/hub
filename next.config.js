@@ -1,5 +1,14 @@
+const path = require("path");
+
 /** @type {import("next").NextConfig} */
 const nextConfig = {
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@prisma/client": path.resolve(__dirname, "../data-hub/node_modules/@prisma/client"),
+    };
+    return config;
+  },
   async headers() {
     return [
       {

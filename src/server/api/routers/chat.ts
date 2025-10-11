@@ -178,21 +178,6 @@ export const chatRouter = createTRPCRouter({
         });
       }
 
-      // Check if this is a response to admin@nocage.in
-      const adminParticipant = conversation.participants.find(p =>
-        p.user.email === "admin@nocage.in"
-      );
-
-      if (adminParticipant && adminParticipant.userId !== userId) {
-        // This is a message sent TO admin, so process it as an admin response
-        try {
-          const { processAdminResponse } = await import("@/lib/admin-setup");
-          await processAdminResponse(content, userId, conversationId);
-        } catch (error) {
-          console.error("Failed to process admin response:", error);
-        }
-      }
-
       return message;
     }),
 

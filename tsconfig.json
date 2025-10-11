@@ -23,7 +23,8 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@prisma/client": ["../data-hub/node_modules/@prisma/client"]
     }
   },
   "include": [

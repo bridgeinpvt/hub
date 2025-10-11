@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "cd ../data-hub && npm run db:generate && cd ../hub && cp -r ../data-hub/node_modules/.prisma node_modules/ && cp -r ../data-hub/node_modules/@prisma node_modules/",
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:generate": "cd ../data-hub && npm run db:generate",
+    "db:push": "cd ../data-hub && npm run db:push",
+    "db:migrate": "cd ../data-hub && npm run db:migrate",
+    "db:studio": "cd ../data-hub && npm run db:studio"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.899.0",

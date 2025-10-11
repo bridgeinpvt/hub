@@ -27,6 +27,7 @@ import { api } from "@/trpc/react";
 
 const navigation = [
   { name: "Home", href: "/home", icon: Home },
+  { name: "Explore", href: "/explore", icon: Search },
   { name: "Messages", href: "/messages", icon: MessageSquare },
   { name: "Wallet", href: "/wallet", icon: Wallet },
   { name: "Referrals", href: "/referrals", icon: Users },
